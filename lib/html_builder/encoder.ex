@@ -119,7 +119,7 @@ defimpl HTMLBuilder.Encoder, for: Tuple do
   end
   def encode({el, attributes, body}, options) when el in [:html, "html", 'html'] do
     ["<!DOCTYPE html>", newline(%{pretty: true}),
-     "<html", encode_attributes(attributes), ?>,
+     "<html", encode_attributes(attributes, options), ?>,
      HTMLBuilder.Encoder.encode(body, options),
      "</html>", newline(options)]
   end
@@ -150,14 +150,14 @@ defimpl HTMLBuilder.Encoder, for: Tuple do
     def encode({unquote(el_s)}, _options) do
       [?<, unquote(el_s), ?>]
     end
-    def encode({unquote(el), attributes}, _options) do
-      [?<, unquote(el_s), encode_attributes(attributes), ?>]
+    def encode({unquote(el), attributes}, options) do
+      [?<, unquote(el_s), encode_attributes(attributes, options), ?>]
     end
-    def encode({unquote(el_s), attributes}, _options) do
-      [?<, unquote(el_s), encode_attributes(attributes), ?>]
+    def encode({unquote(el_s), attributes}, options) do
+      [?<, unquote(el_s), encode_attributes(attributes, options), ?>]
     end
-    def encode({unquote(el_s), attributes, contents}, _options) when contents in [nil, []] do
-      [?<, unquote(el_s), encode_attributes(attributes), ?>]
+    def encode({unquote(el_s), attributes, contents}, options) when contents in [nil, []] do
+      [?<, unquote(el_s), encode_attributes(attributes, options), ?>]
     end
     def encode({unquote(el), _, _}, _options) do
       throw :void_element
@@ -176,23 +176,23 @@ defimpl HTMLBuilder.Encoder, for: Tuple do
   def encode({el, attributes}, options) when is_atom(el) do
     encode({Atom.to_string(el), attributes}, options)
   end
-  def encode({el, attributes}, _options) do
-    [?<, el, encode_attributes(attributes), ?>,
+  def encode({el, attributes}, options) do
+    [?<, el, encode_attributes(attributes, options), ?>,
      "</", el, ?>]
   end
   def encode({el, attributes, contents}, options) when is_atom(el) do
     encode({Atom.to_string(el), attributes, contents}, options)
   end
   def encode({el, attributes, contents}, options) do
-    [?<, el, encode_attributes(attributes), ?>,
+    [?<, el, encode_attributes(attributes, options), ?>,
      HTMLBuilder.Encoder.encode(contents, options),
      "</", el, ?>]
   end
 
-  defp encode_attributes(attributes) when is_nil(attributes) or map_size(attributes) == 0 or length(attributes) == 0 do
+  defp encode_attributes(attributes, _options) when is_nil(attributes) or map_size(attributes) == 0 or length(attributes) == 0 do
     []
   end
-  defp encode_attributes(attributes) do
+  defp encode_attributes(attributes, options) do
     Enum.map(attributes, fn
       {_, value} when is_nil(value) or value == false ->
         []
@@ -201,16 +201,16 @@ defimpl HTMLBuilder.Encoder, for: Tuple do
       {key, ""} ->
         [" ", to_string(key), "=\"\""]
       {key, value} ->
-        [" ", to_string(key), ?=, encode_attribute_value(value)]
+        [" ", to_string(key), ?=, encode_attribute_value(value, options)]
     end)
   end
 
-  defp encode_attribute_value(value) when is_binary(value) do
+  defp encode_attribute_value(value, options) when is_binary(value) do
     graphemes = value
     |> HTMLBuilder.Utils.grapheme_stream()
     |> Enum.map(&HTMLBuilder.Utils.escape_character/1)
 
-    must_quote = graphemes |> Enum.any?(&check_quote/1)
+    must_quote = options[:quote] || Enum.any?(graphemes, &check_quote/1)
 
     if must_quote do
       [?", graphemes, ?"]
@@ -218,8 +218,8 @@ defimpl HTMLBuilder.Encoder, for: Tuple do
       graphemes
     end
   end
-  defp encode_attribute_value(value) do
-    value |> to_string |> encode_attribute_value
+  defp encode_attribute_value(value, options) do
+    value |> to_string |> encode_attribute_value(options)
   end
 
   defp check_quote(character) when character in [" ", "\t", "\r", "\n", "\f", "\0", "\"", "'", "=", ">", "<", "`"], do: true
