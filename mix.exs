@@ -6,10 +6,10 @@ defmodule HTMLBuilder.Mixfile do
      description: "generate html in elixir with simple data structures",
      version: "0.1.1",
      elixir: "~> 1.0",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps,
-     package: package,]
+     build_embedded: Mix.env() == :prod,
+     start_permanent: Mix.env() == :prod,
+     deps: deps(),
+     package: package()]
   end
 
   def application do
