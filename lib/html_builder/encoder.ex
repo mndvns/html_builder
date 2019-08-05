@@ -206,9 +206,9 @@ defimpl HTMLBuilder.Encoder, for: Tuple do
   end
 
   defp encode_attribute_value(value, options) when is_binary(value) do
-    graphemes = value
-    |> HTMLBuilder.Utils.grapheme_stream()
-    |> Enum.map(&HTMLBuilder.Utils.escape_character/1)
+    escape_character = if options[:safe], do: &(&1), else: &HTMLBuilder.Utils.escape_character/1
+
+    graphemes = value |> HTMLBuilder.Utils.grapheme_stream() |> Enum.map(escape_character)
 
     must_quote = options[:quote] || Enum.any?(graphemes, &check_quote/1)
 
@@ -217,6 +217,9 @@ defimpl HTMLBuilder.Encoder, for: Tuple do
     else
       graphemes
     end
+  end
+  defp encode_attribute_value({:__safe__, value}, options) do
+    value |> encode_attribute_value(options |> Map.put(:safe, true))
   end
   defp encode_attribute_value(value, options) do
     value |> to_string |> encode_attribute_value(options)
